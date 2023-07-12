@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Состояние хостов</title>
+    <style>
+        .hosts {
+            min-height: 1rem;
+            max-width: 500px;
+            box-shadow: 0 0 10px gray;
+            padding: 0;
+            border-radius: 5px;
+        }
+        .hosts__item {
+            list-style: none;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        .hosts__item:nth-child(2n) {
+            background: lightgray;
+        }
+        .hosts__item__header {
+            font-weight: bold;
+        }
+        .text-danger {
+            color: red;
+        }
+        .error {
+            background: red !important;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Состояние хостов</h1>
+
+    <button id="close-connection-btn" onclick="closeConnection()">прервать соединение с API</button>
+
+    <ul id="hosts" class="hosts"></ul>
+
+    <script>
+        const hostsView = document.querySelector('#hosts')
+        const hostsGroup = {}
+        const eventSource = new EventSource('/api/hosts')
+
+        eventSource.onmessage = (e) => {
+
+            // элемент для сравнения подставляется контроллером HomeController
+            // из конфигурационного файла config/hosts_status_api.php
+            if (e.data == '%s') {
+                closeConnection()
+                return
+            }
+
+            const data  = JSON.parse(e.data)
+
+            for (key in data) {
+                show(data[key])
+            }
+        }
+
+        /************************************************/
+
+        function show(host) {
+            const view = getView(host.id)
+            view.innerHTML = formatHostHTML(host)
+            showHostStatus(host, view)
+        }
+
+        function getView(id) {
+            if (! hostsGroup[id]) {
+                hostsGroup[id] = document.createElement('li')
+                hostsGroup[id].id = id
+                hostsGroup[id].className = 'hosts__item'
+                hostsView.appendChild(hostsGroup[id])
+            }
+            return hostsGroup[id]
+        }
+
+        function formatHostHTML(host) {
+            let string = ''
+            string += `<span class="hosts__item__header">${host.name}</span>`
+            string += `<span>${host.result}</span>`
+            return string
+        }
+
+        function showHostStatus(host, hostView) {
+            if (host.result === null) hostView.classList.add('error')
+            else hostView.classList.remove('error')
+        }
+
+        function closeConnection()
+        {
+            eventSource.close()
+            const h1 = document.querySelector('h1')
+            h1.innerText = 'Нет связи с API'
+            h1.className = 'text-danger'
+            document.querySelector('body').removeChild(document.querySelector('#close-connection-btn'))
+        }
+    </script>
+</body>
+</html>
